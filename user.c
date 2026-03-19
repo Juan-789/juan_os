@@ -5,6 +5,7 @@ extern char __stack_top[];
 int syscall(int, int, int, int);
 
 __attribute__((noreturn)) void exit(void) {
+    syscall(SYS_EXIT, 0, 0, 0);
     for (;;);
 }
 
@@ -34,4 +35,7 @@ int syscall(int sysno, int arg0, int arg1, int arg2) {
                         : "r"(a0), "r"(a1), "r"(a2), "r"(a3)
                         : "memory");
     return a0;
+}
+int getchar(void) {
+    return syscall(SYS_GETCHAR, 0, 0, 0);
 }

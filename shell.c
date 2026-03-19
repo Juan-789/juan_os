@@ -1,11 +1,31 @@
 #include "kernel.h"
+#include "user.h"
 
-
-// extern char _binary_shell_bin_start[] = "<shell.bin contents here>";
-// extern char _binary_shell_bin_size[];
 
 void main(void) {
-    // *((volatile int *) 0x80200000) = 0x1234;
-    // for(;;);
-    printf("Hello world from shell\n");
+    while(1) {
+prompt:
+        printf("> ");
+        char cmdline[128];
+        for (int i = 0;; i++) {
+            char ch = getchar();
+            putchar(ch);
+            if (i == sizeof(cmdline) - 1) {
+                printf("command line too long\n");
+                goto prompt; //first time.i write a goto
+            } else if (ch == '\r') {
+                printf("\n");
+                cmdline[i] = '\0';
+                break;
+            } else {
+                cmdline[i] = ch;
+            }
+        }
+        if (strcmp(cmdline, "hello") == 0)
+            printf("Hello world from shell!\n");
+        else if (strcmp(cmdline, "exit") == 0)
+            exit();
+        else
+            printf("unknown command: %s\n", cmdline);
+    }
 }

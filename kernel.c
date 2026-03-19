@@ -12,6 +12,13 @@ extern char _binary_shell_bin_start[], _binary_shell_bin_size[];
 
 void map_page(uint32_t *table1, uint32_t vaddr, paddr_t paddr, uint32_t flags);
 void user_entry(void);
+void yield();
+
+struct process *proc_a;
+struct process *proc_b;
+
+struct process *current_proc; // Currently running process
+struct process *idle_proc;    // Idle process
 
 struct sbiret sbi_call(long arg0, long arg1, long arg2, long arg3,long arg4, long arg5, long fid, long eid) {
     register long a0 __asm__("a0") = arg0;
@@ -38,6 +45,10 @@ void putchar(char ch) { //lowkey a printf
     sbi_call(ch, 0, 0, 0, 0, 0, 0, 1 /* Console Putchar */);
 }
 
+long getchar(void) {
+    struct sbiret ret = sbi_call(0, 0, 0, 0, 0, 0, 0, 2);
+    return ret.error;
+}
 
 __attribute__((naked))
 __attribute__((aligned(4)))
@@ -152,6 +163,21 @@ void handle_syscall(struct trap_frame *f) {
         case SYS_PUTCHAR:
             putchar(f->a0);
             break;
+        case SYS_GETCHAR:
+            while(1) {
+                long ch = getchar();
+                if (ch >= 0) {
+                    f->a0 = ch;
+                    break;
+                }
+                yield();
+            }
+            break;
+        case SYS_EXIT:
+            printf("process %d exited\n", current_proc->pid);
+            current_proc->state = PROC_EXITED;
+            yield();
+            PANIC("unreachable");
         default:
             PANIC("unexpected syscall a3=%x\n", f->a3);
     }
@@ -277,11 +303,7 @@ void delay(void) {
         __asm__ __volatile__("nop"); // do nothing
 }
 
-struct process *proc_a;
-struct process *proc_b;
 
-struct process *current_proc; // Currently running process
-struct process *idle_proc;    // Idle process
 
 void yield(void) {
     // Search for a runnable process
